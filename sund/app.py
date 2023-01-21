@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from os import getuid
+from typing import Optional
 
 from socpi import App
 
-from sund.utils import calculate_brightness
+from sund.utils import calculate_brightness, set_brightness
 
 app = App(f"/run/user/{getuid()}/sund")
 
@@ -13,22 +14,19 @@ class Store:
     """Stores the state of the application."""
 
     bias: int
+    last_brightness: Optional[int]
 
 
-store = Store(bias=0)
+store = Store(bias=0, last_brightness=None)
 
 
 @app.register
-def set_bias(value: int):
+async def set_bias(value: int):
     """Sets the `bias` in the state."""
     store.bias = value
-    return store.bias
-
-
-@app.register
-def modify_bias(value: int):
-    """Adds the `value` to the bias and returns the new bias."""
-    store.bias += value
+    brightness = calculate_brightness() + store.bias
+    await set_brightness(brightness)
+    store.last_brightness = brightness
     return store.bias
 
 
@@ -41,4 +39,4 @@ def get_bias():
 @app.register
 def get_desired_brightness():
     """Returns the desired brightness."""
-    return calculate_brightness()
+    return store.last_brightness
